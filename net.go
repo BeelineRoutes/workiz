@@ -15,6 +15,7 @@ import (
     "encoding/json"
     "io/ioutil"
     "bytes"
+	"strings"
 )
 
   //-----------------------------------------------------------------------------------------------------------------------//
@@ -35,6 +36,25 @@ func (this *Workiz) finish (req *http.Request, out interface{}) (*Error, error) 
 		errObj := &Error{
 			StatusCode: resp.StatusCode,
 			Msg: string(body),
+		}
+
+		errResp := &apiResp{}
+		err = errors.WithStack (json.Unmarshal (body, errResp))
+		if err == nil {
+			// i want to try to "handle" some of these errors here that aren't actually errors
+			if errResp.Code == 400 {
+				if strings.Contains(errResp.Details.Error, "User is already assigned") {
+					return nil, nil 
+				}
+				if strings.Contains(errResp.Details.Error, "User is not assigned") {
+					return nil, nil 
+				}
+			}
+
+			// give a more intellegent error out
+			errObj.Msg = errResp.Details.Error + " : " + errResp.Msg
+		} else {
+			errObj.Msg += " :: " + err.Error() // i want to know about this
 		}
         
         return errObj, errors.Wrap (err, string(body))

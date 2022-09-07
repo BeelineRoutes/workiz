@@ -1,5 +1,5 @@
 /** ****************************************************************************************************************** **
-	Calls related to jobs
+	Calls related to leads (estimates)
 
     
 ** ****************************************************************************************************************** **/
@@ -21,22 +21,16 @@ import (
  //----- CONSTS ----------------------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------------------------------//
 
-type JobStatus string 
-
-const (
-	JobStatus_submitted         = JobStatus("Submitted")
-)
-
   //-----------------------------------------------------------------------------------------------------------------------//
  //----- STRUCTS ---------------------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------------------------------//
 
-type Job struct {
+type Lead struct {
     UUID *uuid.UUID 
     SerialId, ClientId int 
-    JobDateTime, JobEndDateTime, CreatedDate, PaymentDueDate, LastStatusUpdate time.Time
-    JobTotalPrice, JobAmountDue, SubTotal, SubStatus, JobType, ReferralCompany, Timezone, ServiceArea string 
-    Phone, PhoneExt, Email, Comments, FirstName, LastName, Company, JobNotes, JobSource, CreatedBy string 
+    LeadDateTime, LeadEndDateTime, CreatedDate, PaymentDueDate, LastStatusUpdate time.Time
+    LeadTotalPrice, LeadAmountDue, SubTotal, SubStatus, LeadType, ReferralCompany, Timezone, ServiceArea string 
+    Phone, PhoneExt, Email, Comments, FirstName, LastName, Company, LeadNotes, LeadSource, CreatedBy string 
     Address, City, State, PostalCode, Country, Unit string 
     Latitude, Longitude string 
     ItemCost string `json:"item_cost"`
@@ -48,21 +42,21 @@ type Job struct {
     }
 }
 
-type CreateJob struct {
+type CreateLead struct {
     AuthSecret string `json:"auth_secret"`
-    JobDateTime, JobEndDateTime time.Time 
+    LeadDateTime, LeadEndDateTime time.Time 
     ClientId int
     Phone, Email, FirstName, LastName, Address, City, State, PostalCode string 
-    JobType, JobSource, JobNotes string 
+    Comments, JobType, JobSource, LeadNotes string
 }
 
-type jobResponse []struct {
+type leadResponse []struct {
     Flag bool 
-    Data Job
+    Data Lead
 }
 
-// takes the jobs out of whatever this parent object is for
-func (this jobResponse) toJobs () (ret []*Job) {
+// takes the leads out of whatever this parent object is for
+func (this leadResponse) toLeads () (ret []*Lead) {
     for _, j := range this {
         if j.Flag {
             ret = append (ret, &j.Data)
@@ -79,28 +73,28 @@ func (this jobResponse) toJobs () (ret []*Job) {
  //----- FUNCTIONS -------------------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------------------------------//
 
-// gets the info about a specific job
-func (this *Workiz) GetJob (ctx context.Context, token, jobId string) (*Job, error) {
-    var resp jobResponse
+// gets the info about a specific lead
+func (this *Workiz) GetLead (ctx context.Context, token, leadId string) (*Lead, error) {
+    var resp leadResponse
     
-    errObj, err := this.send (ctx, http.MethodGet, token, fmt.Sprintf("job/get/%s/", jobId), nil, &resp)
+    errObj, err := this.send (ctx, http.MethodGet, token, fmt.Sprintf("lead/get/%s/", leadId), nil, &resp)
     if err != nil { return nil, errors.WithStack(err) } // bail
     if errObj != nil { return nil, errObj } // something else bad
 
-    jobs := resp.toJobs() // pull out the jobs
-    if len(jobs) == 0 {
-        return nil, errors.Wrap (ErrNotFound, jobId)
-    } else if len(jobs) > 1 {
-        return nil, errors.Wrapf (ErrUnexpected, "More than 1 job found for id '%s'", jobId)
+    leads := resp.toLeads() // pull out the leads
+    if len(leads) == 0 {
+        return nil, errors.Wrap (ErrNotFound, leadId)
+    } else if len(leads) > 1 {
+        return nil, errors.Wrapf (ErrUnexpected, "More than 1 lead found for id '%s'", leadId)
     }
 
     // we're here, we're good
-    return jobs[0], nil
+    return leads[0], nil
 }
 
-// returns all jobs that match our conditions
-func (this *Workiz) ListJobs (ctx context.Context, token string, start time.Time, status ...JobStatus) ([]*Job, error) {
-    ret := make([]*Job, 0) // main list to return
+// returns all leads that match our conditions
+func (this *Workiz) ListLeads (ctx context.Context, token string, start time.Time, status ...JobStatus) ([]*Lead, error) {
+    ret := make([]*Lead, 0) // main list to return
     
     params := url.Values{}
     params.Set("records", "100") // docs say 100 is the most you can request at a time
@@ -118,38 +112,38 @@ func (this *Workiz) ListJobs (ctx context.Context, token string, start time.Time
         params.Set("start_date", start.Format("2006-01-02"))
     }
 
-    for i := 0; i < 10; i++ { // stay in a loop as long as we're pulling jobs
+    for i := 0; i < 10; i++ { // stay in a loop as long as we're pulling leads
         params.Set("offset", fmt.Sprintf("%d", i)) // set our next page
-        var resp jobResponse
+        var resp leadResponse
         
-        errObj, err := this.send (ctx, http.MethodGet, token, fmt.Sprintf("job/all/?%s", params.Encode()), nil, &resp)
+        errObj, err := this.send (ctx, http.MethodGet, token, fmt.Sprintf("lead/all/?%s", params.Encode()), nil, &resp)
         if err != nil { return nil, errors.WithStack(err) } // bail
         if errObj != nil { return nil, errObj } // something else bad
 
         // we're here, we're good
-        newJobs := resp.toJobs()
-        ret = append (ret, newJobs...)
+        newLeads := resp.toLeads()
+        ret = append (ret, newLeads...)
         
         // 100 is the default records count from above
-        if len(newJobs) < 100 { return ret, nil } // we finished
+        if len(newLeads) < 100 { return ret, nil } // we finished
     }
-    return ret, errors.Wrapf (ErrTooManyRecords, "received over %d jobs in your history", len(ret))
+    return ret, errors.Wrapf (ErrTooManyRecords, "received over %d leads in your history", len(ret))
 }
 
-// updates the start/end time for a job at UTC
-func (this *Workiz) UpdateJobSchedule (ctx context.Context, token, secret, jobId string, startTime time.Time, duration time.Duration) error {
+// updates the start/end time for a lead at UTC
+func (this *Workiz) UpdateLeadSchedule (ctx context.Context, token, secret, leadId string, startTime time.Time, duration time.Duration) error {
     var data struct {
         AuthSecret string `json:"auth_secret"`
         UUID, Timezone string 
-        JobDateTime, JobEndDateTime time.Time 
+        LeadDateTime, LeadEndDateTime time.Time 
     }
-    data.UUID = jobId 
+    data.UUID = leadId 
     data.AuthSecret = secret
     data.Timezone = "UTC" // we're always in utc
-    data.JobDateTime = startTime 
-    data.JobEndDateTime = data.JobDateTime.Add(duration)
+    data.LeadDateTime = startTime 
+    data.LeadEndDateTime = data.LeadDateTime.Add(duration)
 
-    errObj, err := this.send (ctx, http.MethodPost, token, "job/update/", data, nil)
+    errObj, err := this.send (ctx, http.MethodPost, token, "lead/update/", data, nil)
     if err != nil { return errors.WithStack(err) } // bail
     if errObj != nil { return errObj } // something else bad
     
@@ -157,19 +151,19 @@ func (this *Workiz) UpdateJobSchedule (ctx context.Context, token, secret, jobId
     return nil
 }
 
-// assigns a job to the crew names
-func (this *Workiz) AssignJobCrew (ctx context.Context, token, secret, jobId string, fullNames []string) error {
+// assigns a lead to the crew names
+func (this *Workiz) AssignLeadCrew (ctx context.Context, token, secret, leadId string, fullNames []string) error {
     var data struct {
         AuthSecret string `json:"auth_secret"`
         UUID, User string 
     }
-    data.UUID = jobId 
+    data.UUID = leadId 
     data.AuthSecret = secret
     
     for _, name := range fullNames {
         data.User = name // it's based on name, not id
 
-        errObj, err := this.send (ctx, http.MethodPost, token, "job/assign/", data, nil)
+        errObj, err := this.send (ctx, http.MethodPost, token, "lead/assign/", data, nil)
         if err != nil { return errors.WithStack(err) } // bail
         if errObj != nil { return errObj } // something else bad
     }
@@ -178,19 +172,19 @@ func (this *Workiz) AssignJobCrew (ctx context.Context, token, secret, jobId str
     return nil
 }
 
-// unassigns a job to the crew names
-func (this *Workiz) UnassignJobCrew (ctx context.Context, token, secret, jobId string, fullNames []string) error {
+// unassigns a lead to the crew names
+func (this *Workiz) UnassignLeadCrew (ctx context.Context, token, secret, leadId string, fullNames []string) error {
     var data struct {
         AuthSecret string `json:"auth_secret"`
         UUID, User string 
     }
-    data.UUID = jobId 
+    data.UUID = leadId 
     data.AuthSecret = secret
     
     for _, name := range fullNames {
         data.User = name // it's based on name, not id
 
-        errObj, err := this.send (ctx, http.MethodPost, token, "job/unassign/", data, nil)
+        errObj, err := this.send (ctx, http.MethodPost, token, "lead/unassign/", data, nil)
         if err != nil { return errors.WithStack(err) } // bail
         if errObj != nil { return errObj } // something else bad
     }
@@ -199,12 +193,12 @@ func (this *Workiz) UnassignJobCrew (ctx context.Context, token, secret, jobId s
     return nil
 }
 
-// creates a new job in the system
-func (this *Workiz) CreateJob (ctx context.Context, token, secret string, job *CreateJob) error {
-    job.AuthSecret = secret
-    job.Timezone = "UTC" // we're always in utc
+// creates a new lead in the system
+func (this *Workiz) CreateLead (ctx context.Context, token, secret string, lead *CreateLead) error {
+    lead.AuthSecret = secret
+    lead.Timezone = "UTC" // we're always in utc
     
-    errObj, err := this.send (ctx, http.MethodPost, token, "job/create/", job, nil)
+    errObj, err := this.send (ctx, http.MethodPost, token, "lead/create/", lead, nil)
     if err != nil { return errors.WithStack(err) } // bail
     if errObj != nil { return errObj } // something else bad
     
