@@ -36,7 +36,7 @@ type Job struct {
     SerialId, ClientId int 
     JobDateTime, JobEndDateTime, CreatedDate, PaymentDueDate, LastStatusUpdate time.Time
     JobTotalPrice, JobAmountDue, SubTotal, SubStatus, JobType, ReferralCompany, Timezone, ServiceArea string 
-    Phone, PhoneExt, Email, FirstName, LastName, Company, JobNotes, JobSource, CreatedBy string 
+    Phone, PhoneExt, SecondPhone, Email, FirstName, LastName, Company, JobNotes, JobSource, CreatedBy string 
     Address, City, State, PostalCode, Country, Unit string 
     Latitude, Longitude string 
     ItemCost string `json:"item_cost"`

@@ -30,7 +30,7 @@ type Lead struct {
     SerialId, ClientId int 
     LeadDateTime, LeadEndDateTime, CreatedDate, PaymentDueDate, LastStatusUpdate time.Time
     LeadTotalPrice, LeadAmountDue, SubTotal, SubStatus, LeadType, ReferralCompany, Timezone, ServiceArea string 
-    Phone, PhoneExt, Email, Comments, FirstName, LastName, Company, LeadNotes, LeadSource, CreatedBy string 
+    Phone, PhoneExt, SecondPhone, Email, Comments, FirstName, LastName, Company, LeadNotes, LeadSource, CreatedBy string 
     Address, City, State, PostalCode, Country, Unit string 
     Latitude, Longitude string 
     ItemCost string `json:"item_cost"`
