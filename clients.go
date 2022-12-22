@@ -49,13 +49,13 @@ func (this *Workiz) CreateClient (ctx context.Context, token, secret string, cli
     
     errObj, err := this.send (ctx, http.MethodPost, token, "Client/create/", client, resp)
     if err != nil { return errors.WithStack(err) } // bail
-    if errObj != nil { return errObj } // something else bad
+    if errObj != nil { return errObj.Err() } // something else bad
 
     if resp.Flag != true {
         return errors.Errorf("response flag was not true : %+v", resp)
     }
 
-    client.Id = resp.Data.Client_id // copy this over
+    client.Id = resp.Data[0].Client_id // copy this over
 
     return nil // we're good
 }
@@ -66,7 +66,7 @@ func (this *Workiz) GetClient (ctx context.Context, token, id string) (*Client, 
     
     errObj, err := this.send (ctx, http.MethodGet, token, "Client/get/" + id + "/", nil, resp)
     if err != nil { return nil, errors.WithStack(err) } // bail
-    if errObj != nil { return nil, errObj } // something else bad
+    if errObj != nil { return nil, errObj.Err() } // something else bad
 
     if resp.Flag != true {
         return nil, errors.Errorf("response flag was not true : %+v", resp)

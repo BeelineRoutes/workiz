@@ -7,13 +7,13 @@
 package workiz 
 
 import (
-    "github.com/gofrs/uuid"
     "github.com/pkg/errors"
     
     "fmt"
     "net/http"
     "net/url"
     "context"
+    "strings"
     "time"
 )
 
@@ -32,11 +32,11 @@ const (
 //-----------------------------------------------------------------------------------------------------------------------//
 
 type Job struct {
-    UUID *uuid.UUID 
+    UUID string
     SerialId, ClientId int 
     JobDateTime, JobEndDateTime, CreatedDate, PaymentDueDate, LastStatusUpdate time.Time
     JobTotalPrice, JobAmountDue, SubTotal, SubStatus, JobType, ReferralCompany, Timezone, ServiceArea string 
-    Phone, PhoneExt, Email, Comments, FirstName, LastName, Company, JobNotes, JobSource, CreatedBy string 
+    Phone, PhoneExt, Email, FirstName, LastName, Company, JobNotes, JobSource, CreatedBy string 
     Address, City, State, PostalCode, Country, Unit string 
     Latitude, Longitude string 
     ItemCost string `json:"item_cost"`
@@ -46,10 +46,17 @@ type Job struct {
         Id string `json:"id"`
         Name string `json:"name"`
     }
+    Comments []struct {
+        Comment string 
+    }
+}
+
+type baseAuth struct {
+    AuthSecret string `json:"auth_secret"`
 }
 
 type CreateJob struct {
-    AuthSecret string `json:"auth_secret"`
+    baseAuth
     JobDateTime, JobEndDateTime time.Time 
     ClientId int
     Phone, Email, FirstName, LastName, Address, City, State, PostalCode string 
@@ -85,7 +92,7 @@ func (this *Workiz) GetJob (ctx context.Context, token, jobId string) (*Job, err
     
     errObj, err := this.send (ctx, http.MethodGet, token, fmt.Sprintf("job/get/%s/", jobId), nil, &resp)
     if err != nil { return nil, errors.WithStack(err) } // bail
-    if errObj != nil { return nil, errObj } // something else bad
+    if errObj != nil { return nil, errObj.Err() } // something else bad
 
     jobs := resp.toJobs() // pull out the jobs
     if len(jobs) == 0 {
@@ -124,7 +131,7 @@ func (this *Workiz) ListJobs (ctx context.Context, token string, start time.Time
         
         errObj, err := this.send (ctx, http.MethodGet, token, fmt.Sprintf("job/all/?%s", params.Encode()), nil, &resp)
         if err != nil { return nil, errors.WithStack(err) } // bail
-        if errObj != nil { return nil, errObj } // something else bad
+        if errObj != nil { return nil, errObj.Err() } // something else bad
 
         // we're here, we're good
         newJobs := resp.toJobs()
@@ -139,7 +146,7 @@ func (this *Workiz) ListJobs (ctx context.Context, token string, start time.Time
 // updates the start/end time for a job at UTC
 func (this *Workiz) UpdateJobSchedule (ctx context.Context, token, secret, jobId string, startTime time.Time, duration time.Duration) error {
     var data struct {
-        AuthSecret string `json:"auth_secret"`
+        baseAuth
         UUID, Timezone string 
         JobDateTime, JobEndDateTime time.Time 
     }
@@ -151,62 +158,124 @@ func (this *Workiz) UpdateJobSchedule (ctx context.Context, token, secret, jobId
 
     errObj, err := this.send (ctx, http.MethodPost, token, "job/update/", data, nil)
     if err != nil { return errors.WithStack(err) } // bail
-    if errObj != nil { return errObj } // something else bad
+    if errObj != nil { return errObj.Err() } // something else bad
     
     // we're here, we're good
     return nil
 }
 
+// handles the high level logic of changing which crew members are assigned to a job
+// crew members need to be assigned one at a time
+// and if you assign the same one twice, you get an error
+// so we need to get the currently assigned ones first, then figure out if more need to be added or removed
+func (this *Workiz) UpdateJobCrew (ctx context.Context, token, secret, jobId string, fullNames []string) error {
+    existing, err := this.GetJob (ctx, token, jobId)
+    if err != nil { return err }
+
+    // first step, add the missing ones
+    for _, name := range fullNames {
+        exists := false 
+        for _, team := range existing.Team {
+            if strings.EqualFold (team.Name, name) { 
+                exists = true 
+                break 
+            }
+        }
+
+        if exists == false {
+            // it's missing so add it
+            err = this.AssignJobCrew (ctx, token, secret, jobId, name)
+            if err != nil { return err }
+        }
+    }
+
+    // second step, remove the assigned crew that are no longer assigned
+    for _, team := range existing.Team {
+        exists := false 
+        for _, name := range fullNames {
+            if strings.EqualFold (team.Name, name) {
+                exists = true 
+                break
+            }
+        }
+
+        if exists == false {
+            // they're currently assigned and we need to remove them
+            err = this.UnassignJobCrew (ctx, token, secret, jobId, team.Name)
+            if err != nil { return err }
+        }
+    }
+    return nil // we got everything figured out
+}
+
 // assigns a job to the crew names
-func (this *Workiz) AssignJobCrew (ctx context.Context, token, secret, jobId string, fullNames []string) error {
+func (this *Workiz) AssignJobCrew (ctx context.Context, token, secret, jobId string, fullName string) error {
     var data struct {
-        AuthSecret string `json:"auth_secret"`
+        baseAuth
         UUID, User string 
     }
     data.UUID = jobId 
     data.AuthSecret = secret
-    
-    for _, name := range fullNames {
-        data.User = name // it's based on name, not id
+    data.User = fullName // it's based on name, not id
 
-        errObj, err := this.send (ctx, http.MethodPost, token, "job/assign/", data, nil)
-        if err != nil { return errors.WithStack(err) } // bail
-        if errObj != nil { return errObj } // something else bad
-    }
+    errObj, err := this.send (ctx, http.MethodPost, token, "job/assign/", data, nil)
+    if err != nil { return errors.WithStack(err) } // bail
+    if errObj != nil { return errObj.Err() } // something else bad
     
     // we're here, we're good
     return nil
 }
 
 // unassigns a job to the crew names
-func (this *Workiz) UnassignJobCrew (ctx context.Context, token, secret, jobId string, fullNames []string) error {
+func (this *Workiz) UnassignJobCrew (ctx context.Context, token, secret, jobId string, fullName string) error {
     var data struct {
-        AuthSecret string `json:"auth_secret"`
+        baseAuth
         UUID, User string 
     }
     data.UUID = jobId 
     data.AuthSecret = secret
+    data.User = fullName // it's based on name, not id
     
-    for _, name := range fullNames {
-        data.User = name // it's based on name, not id
-
-        errObj, err := this.send (ctx, http.MethodPost, token, "job/unassign/", data, nil)
-        if err != nil { return errors.WithStack(err) } // bail
-        if errObj != nil { return errObj } // something else bad
-    }
+    errObj, err := this.send (ctx, http.MethodPost, token, "job/unassign/", data, nil)
+    if err != nil { return errors.WithStack(err) } // bail
+    if errObj != nil { return errObj.Err() } // something else bad
     
     // we're here, we're good
     return nil
 }
 
 // creates a new job in the system
-func (this *Workiz) CreateJob (ctx context.Context, token, secret string, job *CreateJob) error {
+// jobs are created in the timezone of the account. so if we have the JobDateTime: "2022-12-18 15:00:00" it will create the job at 3pm est
+// so we need to convert this time from UTC to the local timezone for the account
+func (this *Workiz) CreateJob (ctx context.Context, token, secret string, job *CreateJob) (string, error) {
     job.AuthSecret = secret
-    job.Timezone = "UTC" // we're always in utc
+    resp := &apiResp{}
     
-    errObj, err := this.send (ctx, http.MethodPost, token, "job/create/", job, nil)
+    errObj, err := this.send (ctx, http.MethodPost, token, "job/create/", job, resp)
+    if err != nil { return "", errors.WithStack(err) } // bail
+    if errObj != nil { return "", errObj.Err() } // something else bad
+
+    if resp.Flag == false || len(resp.Data) == 0 {
+        return "", errors.Errorf ("didn't get expected data back from creating a lead: %+v", resp)
+    }
+    
+    // we're here, we're good
+    return resp.Data[0].UUID, nil
+}
+
+// all jobs need a job type
+// this creates it if its missing
+func (this *Workiz) CreateJobType (ctx context.Context, token, secret, jobType string) error {
+    var data struct {
+        baseAuth
+        JobType string 
+    }
+    data.AuthSecret = secret
+    data.JobType = jobType
+    
+    errObj, err := this.send (ctx, http.MethodPost, token, "jobType/createIfNotExists/", data, nil)
     if err != nil { return errors.WithStack(err) } // bail
-    if errObj != nil { return errObj } // something else bad
+    if errObj != nil { return errObj.Err() } // something else bad
     
     // we're here, we're good
     return nil

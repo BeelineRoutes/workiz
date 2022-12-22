@@ -36,6 +36,10 @@ type teamResponse []memberResponse
 func (this teamResponse) toMembers () (ret []*Member) {
     for _, t := range this {
         for _, m := range t {
+            if m.Active == false { continue }
+            if m.FieldTech == false { continue }
+
+            // they're good to get jobs
             ret = append (ret, m)
         }
     }
@@ -56,7 +60,7 @@ func (this *Workiz) ListTeam (ctx context.Context, token string) ([]*Member, err
     
     errObj, err := this.send (ctx, http.MethodGet, token, "team/all/", nil, &resp)
     if err != nil { return nil, errors.WithStack(err) } // bail
-    if errObj != nil { return nil, errObj } // something else bad
+    if errObj != nil { return nil, errObj.Err() } // something else bad
 
     return resp.toMembers(), nil // we're good
 }

@@ -14,7 +14,7 @@ package workiz
 import (
     "github.com/pkg/errors"
 
-    "fmt"
+    //"fmt"
     "net/http"
     "encoding/json"
     "os"
@@ -30,7 +30,7 @@ var (
     ErrUnexpected       = errors.New("idk...")
 	ErrNotFound 		= errors.New("Item was not found")
 	ErrTooManyRecords	= errors.New("Too many records returned")
-    
+    ErrAuthExpired      = errors.New("Auth Expired")
 )
 
   //-----------------------------------------------------------------------------------------------------------------------//
@@ -51,7 +51,7 @@ func (this Config) Valid () bool {
 type apiResp struct {
     Flag, Error bool 
     Msg string 
-    Data struct {
+    Data []struct {
         UUID, Client_id string 
     }
     Details struct {
@@ -67,14 +67,14 @@ type Error struct {
 	StatusCode int
 }
 
-func (this *Error) Error () string {
-	if this == nil { return "" } // no error
+func (this *Error) Err () error {
+	if this == nil { return nil } // no error
 	switch this.StatusCode {
 	case http.StatusUnauthorized:
-        return fmt.Sprintf ("Unauthorized : %d : %s", this.StatusCode, this.Msg)
+        return errors.Wrapf (ErrAuthExpired, "Unauthorized : %d : %s", this.StatusCode, this.Msg)
 	}
 	// just a default
-	return fmt.Sprintf ("Workiz Error : %d : %s : %s", this.StatusCode, this.Msg)
+	return errors.Wrapf (ErrUnexpected, "Workiz Error : %d : %s : %s", this.StatusCode, this.Msg)
 }
 
   //-----------------------------------------------------------------------------------------------------------------------//

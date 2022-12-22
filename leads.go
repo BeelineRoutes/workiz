@@ -7,7 +7,6 @@
 package workiz 
 
 import (
-    "github.com/gofrs/uuid"
     "github.com/pkg/errors"
     
     "fmt"
@@ -15,6 +14,7 @@ import (
     "net/url"
     "context"
     "time"
+    "strings"
 )
 
   //-----------------------------------------------------------------------------------------------------------------------//
@@ -26,7 +26,7 @@ import (
 //-----------------------------------------------------------------------------------------------------------------------//
 
 type Lead struct {
-    UUID *uuid.UUID 
+    UUID string
     SerialId, ClientId int 
     LeadDateTime, LeadEndDateTime, CreatedDate, PaymentDueDate, LastStatusUpdate time.Time
     LeadTotalPrice, LeadAmountDue, SubTotal, SubStatus, LeadType, ReferralCompany, Timezone, ServiceArea string 
@@ -79,7 +79,7 @@ func (this *Workiz) GetLead (ctx context.Context, token, leadId string) (*Lead, 
     
     errObj, err := this.send (ctx, http.MethodGet, token, fmt.Sprintf("lead/get/%s/", leadId), nil, &resp)
     if err != nil { return nil, errors.WithStack(err) } // bail
-    if errObj != nil { return nil, errObj } // something else bad
+    if errObj != nil { return nil, errObj.Err() } // something else bad
 
     leads := resp.toLeads() // pull out the leads
     if len(leads) == 0 {
@@ -118,7 +118,7 @@ func (this *Workiz) ListLeads (ctx context.Context, token string, start time.Tim
         
         errObj, err := this.send (ctx, http.MethodGet, token, fmt.Sprintf("lead/all/?%s", params.Encode()), nil, &resp)
         if err != nil { return nil, errors.WithStack(err) } // bail
-        if errObj != nil { return nil, errObj } // something else bad
+        if errObj != nil { return nil, errObj.Err() } // something else bad
 
         // we're here, we're good
         newLeads := resp.toLeads()
@@ -145,63 +145,106 @@ func (this *Workiz) UpdateLeadSchedule (ctx context.Context, token, secret, lead
 
     errObj, err := this.send (ctx, http.MethodPost, token, "lead/update/", data, nil)
     if err != nil { return errors.WithStack(err) } // bail
-    if errObj != nil { return errObj } // something else bad
+    if errObj != nil { return errObj.Err() } // something else bad
     
     // we're here, we're good
     return nil
+}
+
+// handles the high level logic of changing which crew members are assigned to a lead
+// crew members need to be assigned one at a time
+// and if you assign the same one twice, you get an error
+// so we need to get the currently assigned ones first, then figure out if more need to be added or removed
+func (this *Workiz) UpdateLeadCrew (ctx context.Context, token, secret, leadId string, fullNames []string) error {
+    existing, err := this.GetLead (ctx, token, leadId)
+    if err != nil { return err }
+
+    // first step, add the missing ones
+    for _, name := range fullNames {
+        exists := false 
+        for _, team := range existing.Team {
+            if strings.EqualFold (team.Name, name) { 
+                exists = true 
+                break 
+            }
+        }
+
+        if exists == false {
+            // it's missing so add it
+            err = this.AssignLeadCrew (ctx, token, secret, leadId, name)
+            if err != nil { return err }
+        }
+    }
+
+    // second step, remove the assigned crew that are no longer assigned
+    for _, team := range existing.Team {
+        exists := false 
+        for _, name := range fullNames {
+            if strings.EqualFold (team.Name, name) {
+                exists = true 
+                break
+            }
+        }
+
+        if exists == false {
+            // they're currently assigned and we need to remove them
+            err = this.UnassignLeadCrew (ctx, token, secret, leadId, team.Name)
+            if err != nil { return err }
+        }
+    }
+    return nil // we got everything figured out
 }
 
 // assigns a lead to the crew names
-func (this *Workiz) AssignLeadCrew (ctx context.Context, token, secret, leadId string, fullNames []string) error {
+func (this *Workiz) AssignLeadCrew (ctx context.Context, token, secret, leadId string, fullName string) error {
     var data struct {
         AuthSecret string `json:"auth_secret"`
         UUID, User string 
     }
     data.UUID = leadId 
     data.AuthSecret = secret
+    data.User = fullName
     
-    for _, name := range fullNames {
-        data.User = name // it's based on name, not id
-
-        errObj, err := this.send (ctx, http.MethodPost, token, "lead/assign/", data, nil)
-        if err != nil { return errors.WithStack(err) } // bail
-        if errObj != nil { return errObj } // something else bad
-    }
-    
-    // we're here, we're good
-    return nil
+    errObj, err := this.send (ctx, http.MethodPost, token, "lead/assign/", data, nil)
+    if err != nil { return errors.WithStack(err) } // bail
+    if errObj != nil { return errObj.Err() } // something else bad
+    return nil // it worked
 }
 
 // unassigns a lead to the crew names
-func (this *Workiz) UnassignLeadCrew (ctx context.Context, token, secret, leadId string, fullNames []string) error {
+func (this *Workiz) UnassignLeadCrew (ctx context.Context, token, secret, leadId string, fullName string) error {
     var data struct {
         AuthSecret string `json:"auth_secret"`
         UUID, User string 
     }
     data.UUID = leadId 
     data.AuthSecret = secret
+    data.User = fullName // it's based on name, not id
     
-    for _, name := range fullNames {
-        data.User = name // it's based on name, not id
-
-        errObj, err := this.send (ctx, http.MethodPost, token, "lead/unassign/", data, nil)
-        if err != nil { return errors.WithStack(err) } // bail
-        if errObj != nil { return errObj } // something else bad
-    }
+    errObj, err := this.send (ctx, http.MethodPost, token, "lead/unassign/", data, nil)
+    if err != nil { return errors.WithStack(err) } // bail
+    if errObj != nil { return errObj.Err() } // something else bad
     
     // we're here, we're good
     return nil
 }
 
 // creates a new lead in the system
-func (this *Workiz) CreateLead (ctx context.Context, token, secret string, lead *CreateLead) error {
+// returns the uuid of the newly created lead, so we can then assign crew members
+func (this *Workiz) CreateLead (ctx context.Context, token, secret string, lead *CreateLead) (string, error) {
     lead.AuthSecret = secret
-    lead.Timezone = "UTC" // we're always in utc
+
+    // we need the id right away
+    resp := &apiResp{}
     
-    errObj, err := this.send (ctx, http.MethodPost, token, "lead/create/", lead, nil)
-    if err != nil { return errors.WithStack(err) } // bail
-    if errObj != nil { return errObj } // something else bad
+    errObj, err := this.send (ctx, http.MethodPost, token, "lead/create/", lead, resp)
+    if err != nil { return "", errors.WithStack(err) } // bail
+    if errObj != nil { return "", errObj.Err() } // something else bad
+
+    if resp.Flag == false || len(resp.Data) == 0 {
+        return "", errors.Errorf ("didn't get expected data back from creating a lead: %+v", resp)
+    }
     
     // we're here, we're good
-    return nil
+    return resp.Data[0].UUID, nil
 }
