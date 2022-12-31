@@ -60,7 +60,12 @@ func (this *Workiz) finish (req *http.Request, out interface{}) (*Error, error) 
         return errObj, errors.Wrap (err, string(body))
     }
 	
-	if out != nil { err = errors.WithStack (json.Unmarshal (body, out)) }
+	if out != nil { 
+		err = errors.WithStack (json.Unmarshal (body, out))
+		if err != nil {
+			err = errors.Wrap (err, string(body)) // if it didn't unmarshal, include the body so we know what it did look like
+		}
+	}
 	
 	return nil, err // we're good
 }

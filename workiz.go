@@ -74,7 +74,7 @@ func (this *Error) Err () error {
         return errors.Wrapf (ErrAuthExpired, "Unauthorized : %d : %s", this.StatusCode, this.Msg)
 	}
 	// just a default
-	return errors.Wrapf (ErrUnexpected, "Workiz Error : %d : %s : %s", this.StatusCode, this.Msg)
+	return errors.Wrapf (ErrUnexpected, "Workiz Error : %d : %s", this.StatusCode, this.Msg)
 }
 
   //-----------------------------------------------------------------------------------------------------------------------//

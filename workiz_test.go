@@ -5,8 +5,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"testing"
-	"context"
-	"time"
 )
 
 func getRealConfig (t *testing.T) *Config {

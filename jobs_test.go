@@ -21,9 +21,9 @@ func TestJobs (t *testing.T) {
 	if err != nil { t.Fatal (err) }
 
 	assert.Equal (t, true, len(jobs) > 0, "expecting at least 1 job")
-	assert.NotEqual (t, "", jobs[0].Id, "not filled in")
-	assert.NotEqual (t, "", jobs[0].Customer.Id, "not filled in")
-	assert.NotEqual (t, "", jobs[0].Address.Id, "not filled in")
+	assert.NotEqual (t, "", jobs[0].UUID, "not filled in")
+	assert.NotEqual (t, "", jobs[0].ClientId, "not filled in")
+	assert.NotEqual (t, "", jobs[0].Address, "not filled in")
 	
 	/*
 	for _, j := range jobs {

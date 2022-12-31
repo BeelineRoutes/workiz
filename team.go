@@ -29,19 +29,18 @@ type Member struct {
     ServiceAreas, Skills []string 
 }
 
-type memberResponse []*Member
-type teamResponse []memberResponse
+type teamResponse struct {
+    Data []*Member
+}
 
 // takes the jobs out of whatever this parent object is for
 func (this teamResponse) toMembers () (ret []*Member) {
-    for _, t := range this {
-        for _, m := range t {
-            if m.Active == false { continue }
-            if m.FieldTech == false { continue }
+    for _, m := range this.Data {
+        if m.Active == false { continue }
+        if m.FieldTech == false { continue }
 
-            // they're good to get jobs
-            ret = append (ret, m)
-        }
+        // they're good to get jobs
+        ret = append (ret, m)
     }
     return 
 }
