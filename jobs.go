@@ -34,21 +34,20 @@ const (
 type Job struct {
     UUID string
     SerialId, ClientId int 
-    JobDateTime, JobEndDateTime, CreatedDate, PaymentDueDate, LastStatusUpdate time.Time
-    JobTotalPrice, JobAmountDue, SubTotal, SubStatus, JobType, ReferralCompany, Timezone, ServiceArea string 
+    JobDateTime, JobEndDateTime, CreatedDate, PaymentDueDate, LastStatusUpdate workizTime
+    JobTotalPrice, JobAmountDue, SubTotal int
+    SubStatus, JobType, ReferralCompany, Timezone, ServiceArea string 
     Phone, PhoneExt, SecondPhone, Email, FirstName, LastName, Company, JobNotes, JobSource, CreatedBy string 
     Address, City, State, PostalCode, Country, Unit string 
-    Latitude, Longitude string 
-    ItemCost string `json:"item_cost"`
-    TechCost string `json:"tech_cost"`
+    Latitude, Longitude float64 
+    ItemCost int `json:"item_cost"`
+    TechCost int `json:"tech_cost"`
     Status JobStatus
     Team []struct {
-        Id string `json:"id"`
+        Id int `json:"id"`
         Name string `json:"name"`
     }
-    Comments []struct {
-        Comment string 
-    }
+    Comments workizComment
 }
 
 type baseAuth struct {
@@ -63,19 +62,14 @@ type CreateJob struct {
     JobType, JobSource, JobNotes string 
 }
 
-type jobResponse []struct {
+type jobResponse struct {
     Flag bool 
-    Data Job
+    Data []*Job
 }
 
 // takes the jobs out of whatever this parent object is for
 func (this jobResponse) toJobs () (ret []*Job) {
-    for _, j := range this {
-        if j.Flag {
-            ret = append (ret, &j.Data)
-        }
-    }
-    return 
+    return this.Data
 }
 
   //-----------------------------------------------------------------------------------------------------------------------//

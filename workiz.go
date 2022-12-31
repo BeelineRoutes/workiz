@@ -15,6 +15,8 @@ import (
     "github.com/pkg/errors"
 
     //"fmt"
+    "strings"
+    "time"
     "net/http"
     "encoding/json"
     "os"
@@ -60,6 +62,43 @@ type apiResp struct {
     Code int 
 }
 
+type workizTime struct {
+    time.Time 
+}
+
+func (this *workizTime) UnmarshalJSON (b []byte) (err error) {
+    s := strings.Trim(string(b), "\"")
+    if s == "null" {
+       this.Time = time.Time{} // go with an enpty date/time 
+       return
+    }
+
+    this.Time, err = time.Parse("2006-01-02 15:04:05", s)
+    return
+}
+
+type workizComment []string
+
+func (this *workizComment) UnmarshalJSON (b []byte) error {
+
+    // see if it's an empty string, if so, we're done
+    if string(b) == `""` { return nil }
+
+    // we have comments
+    var data []struct {
+        Comment string 
+    }
+
+    err := json.Unmarshal (b, &data)
+    if err != nil { return err } // this is bad
+
+    // this worked, so populate our comments
+    for _, c := range data {
+        *this = append (*this, c.Comment)
+    }
+
+    return nil 
+}
 
 //----- ERRORS ---------------------------------------------------------------------------------------------------------//
 type Error struct {
