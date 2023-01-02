@@ -68,8 +68,15 @@ type jobResponse struct {
 }
 
 // takes the jobs out of whatever this parent object is for
-func (this jobResponse) toJobs () (ret []*Job) {
-    return this.Data
+// we don't have great control over the time range for jobs
+func (this jobResponse) toJobs (start, end time.Time) (ret []*Job) {
+    for _, job := range this.Data {
+        if start.IsZero() || 
+            (job.JobDateTime.After(start) && job.JobDateTime.Before(end)) {
+            ret = append (ret, job)
+        }
+    }
+    return
 }
 
   //-----------------------------------------------------------------------------------------------------------------------//
@@ -88,7 +95,7 @@ func (this *Workiz) GetJob (ctx context.Context, token, jobId string) (*Job, err
     if err != nil { return nil, errors.WithStack(err) } // bail
     if errObj != nil { return nil, errObj.Err() } // something else bad
 
-    jobs := resp.toJobs() // pull out the jobs
+    jobs := resp.toJobs(time.Time{}, time.Time{}) // pull out the jobs
     if len(jobs) == 0 {
         return nil, errors.Wrap (ErrNotFound, jobId)
     } else if len(jobs) > 1 {
@@ -100,7 +107,7 @@ func (this *Workiz) GetJob (ctx context.Context, token, jobId string) (*Job, err
 }
 
 // returns all jobs that match our conditions
-func (this *Workiz) ListJobs (ctx context.Context, token string, start time.Time, status ...JobStatus) ([]*Job, error) {
+func (this *Workiz) ListJobs (ctx context.Context, token string, start, end time.Time, status ...JobStatus) ([]*Job, error) {
     ret := make([]*Job, 0) // main list to return
     
     params := url.Values{}
@@ -128,7 +135,7 @@ func (this *Workiz) ListJobs (ctx context.Context, token string, start time.Time
         if errObj != nil { return nil, errObj.Err() } // something else bad
 
         // we're here, we're good
-        newJobs := resp.toJobs()
+        newJobs := resp.toJobs(start, end)
         ret = append (ret, newJobs...)
         
         // 100 is the default records count from above
