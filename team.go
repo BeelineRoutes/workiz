@@ -7,8 +7,6 @@
 package workiz 
 
 import (
-    "github.com/pkg/errors"
-    
     //"fmt"
     "net/http"
     "context"
@@ -57,9 +55,8 @@ func (this teamResponse) toMembers () (ret []*Member) {
 func (this *Workiz) ListTeam (ctx context.Context, token string) ([]*Member, error) {
     var resp teamResponse
     
-    errObj, err := this.send (ctx, http.MethodGet, token, "team/all/", nil, &resp)
-    if err != nil { return nil, errors.WithStack(err) } // bail
-    if errObj != nil { return nil, errObj.Err() } // something else bad
-
+    err := this.send (ctx, http.MethodGet, token, "team/all/", nil, &resp)
+    if err != nil { return nil, err } // bail
+    
     return resp.toMembers(), nil // we're good
 }

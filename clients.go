@@ -47,10 +47,9 @@ func (this *Workiz) CreateClient (ctx context.Context, token, secret string, cli
     resp := &apiResp{}
     client.AuthSecret = secret
     
-    errObj, err := this.send (ctx, http.MethodPost, token, "Client/create/", client, resp)
-    if err != nil { return errors.WithStack(err) } // bail
-    if errObj != nil { return errObj.Err() } // something else bad
-
+    err := this.send (ctx, http.MethodPost, token, "Client/create/", client, resp)
+    if err != nil { return err } // bail
+    
     if resp.Flag != true {
         return errors.Errorf("response flag was not true : %+v", resp)
     }
@@ -64,10 +63,9 @@ func (this *Workiz) CreateClient (ctx context.Context, token, secret string, cli
 func (this *Workiz) GetClient (ctx context.Context, token, id string) (*Client, error) {
     resp := &getClientResp{}
     
-    errObj, err := this.send (ctx, http.MethodGet, token, "Client/get/" + id + "/", nil, resp)
-    if err != nil { return nil, errors.WithStack(err) } // bail
-    if errObj != nil { return nil, errObj.Err() } // something else bad
-
+    err := this.send (ctx, http.MethodGet, token, "Client/get/" + id + "/", nil, resp)
+    if err != nil { return nil, err } // bail
+    
     if resp.Flag != true {
         return nil, errors.Errorf("response flag was not true : %+v", resp)
     }
