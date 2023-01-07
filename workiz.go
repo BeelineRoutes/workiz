@@ -128,7 +128,9 @@ type Workiz struct {
  //----- FUNCTIONS -------------------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------------------------------//
 
-func ParseConfig (jsonFile string) (*Config, error) {
+// this is just used for local testing
+// so you don't have to keep your actual tokens in the repo
+func parseConfig (jsonFile string) (*Config, error) {
 	config, err := os.Open(jsonFile)
 	if err != nil { return nil, errors.WithStack (err) }
 

@@ -142,7 +142,8 @@ func (this *Workiz) ListJobs (ctx context.Context, token string, start, end time
     return ret, errors.Wrapf (ErrTooManyRecords, "received over %d jobs in your history", len(ret))
 }
 
-// updates the start/end time for a job at UTC
+// updates the start/end time for a job
+// the time needs to be set to whatever timezone the user's account is in
 func (this *Workiz) UpdateJobSchedule (ctx context.Context, token, secret, jobId string, startTime time.Time, duration time.Duration) error {
     var data struct {
         baseAuth
@@ -151,7 +152,6 @@ func (this *Workiz) UpdateJobSchedule (ctx context.Context, token, secret, jobId
     }
     data.UUID = jobId 
     data.AuthSecret = secret
-    data.Timezone = "UTC" // we're always in utc
     data.JobDateTime = startTime 
     data.JobEndDateTime = data.JobDateTime.Add(duration)
 
