@@ -47,7 +47,7 @@ type CreateLead struct {
     LeadDateTime, LeadEndDateTime time.Time 
     ClientId int
     Phone, Email, FirstName, LastName, Address, City, State, PostalCode string 
-    Comments, JobType, JobSource, LeadNotes string
+    Comments, JobType, JobSource, LeadNotes, ServiceArea string
 }
 
 type leadResponse []struct {

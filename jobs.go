@@ -59,7 +59,7 @@ type CreateJob struct {
     JobDateTime, JobEndDateTime time.Time 
     ClientId int
     Phone, Email, FirstName, LastName, Address, City, State, PostalCode string 
-    JobType, JobSource, JobNotes string 
+    JobType, JobSource, JobNotes, ServiceArea string 
 }
 
 type jobResponse struct {
