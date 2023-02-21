@@ -28,7 +28,7 @@ import (
 type Lead struct {
     UUID string
     SerialId, ClientId int 
-    LeadDateTime, LeadEndDateTime, CreatedDate, PaymentDueDate, LastStatusUpdate time.Time
+    LeadDateTime, LeadEndDateTime, CreatedDate, PaymentDueDate, LastStatusUpdate workizTime
     LeadTotalPrice, LeadAmountDue, SubTotal, SubStatus, LeadType, ReferralCompany, Timezone, ServiceArea string 
     Phone, PhoneExt, SecondPhone, Email, Comments, FirstName, LastName, Company, LeadNotes, LeadSource, CreatedBy string 
     Address, City, State, PostalCode, Country, Unit string 
