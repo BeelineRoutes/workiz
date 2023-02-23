@@ -39,7 +39,7 @@ func TestJobs (t *testing.T) {
 	defer cancel()
 
 	// get our list of jobs, only unscheduled ones
-	jobs, err := w.ListJobs (ctx, cfg.Token, time.Now(), JobStatus_submitted)
+	jobs, err := w.ListJobs (ctx, cfg.Token, time.Now(), time.Now().AddDate(0, 0, 1), JobStatus_submitted)
 	if err != nil { t.Fatal (err) }
 
 	assert.Equal (t, true, len(jobs) > 0, "expecting at least 1 job")
