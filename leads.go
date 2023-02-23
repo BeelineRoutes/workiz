@@ -50,19 +50,10 @@ type CreateLead struct {
     Comments, JobType, JobSource, LeadNotes, ServiceArea string
 }
 
-type leadResponse []struct {
+type leadResponse struct {
     Flag bool 
-    Data Lead
-}
-
-// takes the leads out of whatever this parent object is for
-func (this leadResponse) toLeads () (ret []*Lead) {
-    for _, j := range this {
-        if j.Flag {
-            ret = append (ret, &j.Data)
-        }
-    }
-    return 
+    Has_more bool 
+    Data []*Lead
 }
 
   //-----------------------------------------------------------------------------------------------------------------------//
@@ -75,20 +66,19 @@ func (this leadResponse) toLeads () (ret []*Lead) {
 
 // gets the info about a specific lead
 func (this *Workiz) GetLead (ctx context.Context, token, leadId string) (*Lead, error) {
-    var resp leadResponse
+    resp := &leadResponse{}
     
-    err := this.send (ctx, http.MethodGet, token, fmt.Sprintf("lead/get/%s/", leadId), nil, &resp)
+    err := this.send (ctx, http.MethodGet, token, fmt.Sprintf("lead/get/%s/", leadId), nil, resp)
     if err != nil { return nil, err } // bail
     
-    leads := resp.toLeads() // pull out the leads
-    if len(leads) == 0 {
+    if len(resp.Data) == 0 {
         return nil, errors.Wrap (ErrNotFound, leadId)
-    } else if len(leads) > 1 {
+    } else if len(resp.Data) > 1 {
         return nil, errors.Wrapf (ErrUnexpected, "More than 1 lead found for id '%s'", leadId)
     }
 
     // we're here, we're good
-    return leads[0], nil
+    return resp.Data[0], nil
 }
 
 // returns all leads that match our conditions
@@ -108,17 +98,15 @@ func (this *Workiz) ListLeads (ctx context.Context, token string, start time.Tim
 
     for i := 0; i < 10; i++ { // stay in a loop as long as we're pulling leads
         params.Set("offset", fmt.Sprintf("%d", i)) // set our next page
-        var resp leadResponse
+        resp := &leadResponse{}
         
-        err := this.send (ctx, http.MethodGet, token, fmt.Sprintf("lead/all/?%s", params.Encode()), nil, &resp)
+        err := this.send (ctx, http.MethodGet, token, fmt.Sprintf("lead/all/?%s", params.Encode()), nil, resp)
         if err != nil { return nil, err } // bail
         
         // we're here, we're good
-        newLeads := resp.toLeads()
-        ret = append (ret, newLeads...)
+        ret = append (ret, resp.Data...)
         
-        // 100 is the default records count from above
-        if len(newLeads) < 100 { return ret, nil } // we finished
+        if resp.Has_more == false { return ret, nil } // we finished
     }
     return ret, errors.Wrapf (ErrTooManyRecords, "received over %d leads in your history", len(ret))
 }
