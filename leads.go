@@ -97,12 +97,7 @@ func (this *Workiz) ListLeads (ctx context.Context, token string, start time.Tim
     
     params := url.Values{}
     params.Set("records", "100") // docs say 100 is the most you can request at a time
-    if len(status) == 0 {
-        params.Set("only_open", "true") // default
-    } else {
-        params.Set("only_open", "false")
-    }
-
+    
     for _, stat := range status {
         params.Add("status", string(stat))
     }
