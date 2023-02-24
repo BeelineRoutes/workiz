@@ -63,7 +63,7 @@ type CreateJob struct {
 }
 
 type jobResponse struct {
-    Flag bool 
+    Flag, Has_more bool 
     Data []*Job
 }
 
@@ -134,10 +134,15 @@ func (this *Workiz) ListJobs (ctx context.Context, token string, start, end time
         
         // we're here, we're good
         newJobs := resp.toJobs(start, end)
-        ret = append (ret, newJobs...)
         
-        // 100 is the default records count from above
-        if len(newJobs) < 100 { return ret, nil } // we finished
+        if len(newJobs) == 0 {
+            // means we didn't pull any more jobs from within our date range
+            return ret, nil 
+        }
+
+        ret = append (ret, newJobs...)
+
+        if resp.Has_more == false { return ret, nil } // we're done
     }
     return ret, errors.Wrapf (ErrTooManyRecords, "received over %d jobs in your history", len(ret))
 }

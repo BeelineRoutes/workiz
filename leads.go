@@ -114,6 +114,15 @@ func (this *Workiz) ListLeads (ctx context.Context, token string, start, end tim
         
         // we're here, we're good
         leads := resp.toJobs (start, end) // use this to filter out leads outside of the date range
+
+        if len(leads) == 0 {
+            // we're done, all these are in the future
+            // i do'nt know if this is correct, i'm just hoping they're ordered by target date
+            // they're probably ordered by created, but this works close enough
+            return ret, nil 
+        }
+
+        // add them to our list
         ret = append (ret, leads...)
         
         if resp.Has_more == false { return ret, nil } // we finished
