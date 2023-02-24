@@ -55,6 +55,16 @@ type leadResponse struct {
     Data []*Lead
 }
 
+func (this leadResponse) toJobs (start, end time.Time) (ret []*Lead) {
+    for _, lead := range this.Data {
+        if start.IsZero() || // we're looking for unscheduled ones
+            (lead.LeadDateTime.After(start) && lead.LeadDateTime.Before(end)) {
+            ret = append (ret, lead)
+        }
+    }
+    return
+}
+
   //-----------------------------------------------------------------------------------------------------------------------//
  //----- PRIVATE FUNCTIONS -----------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------------------------------//
@@ -81,7 +91,7 @@ func (this *Workiz) GetLead (ctx context.Context, token, leadId string) (*Lead, 
 }
 
 // returns all leads that match our conditions
-func (this *Workiz) ListLeads (ctx context.Context, token string, start time.Time, status ...JobStatus) ([]*Lead, error) {
+func (this *Workiz) ListLeads (ctx context.Context, token string, start, end time.Time, status ...JobStatus) ([]*Lead, error) {
     ret := make([]*Lead, 0) // main list to return
     
     params := url.Values{}
@@ -103,7 +113,8 @@ func (this *Workiz) ListLeads (ctx context.Context, token string, start time.Tim
         if err != nil { return nil, err } // bail
         
         // we're here, we're good
-        ret = append (ret, resp.Data...)
+        leads := resp.toJobs (start, end) // use this to filter out leads outside of the date range
+        ret = append (ret, leads...)
         
         if resp.Has_more == false { return ret, nil } // we finished
     }
