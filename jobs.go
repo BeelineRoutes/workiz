@@ -15,6 +15,7 @@ import (
     "context"
     "strings"
     "time"
+    "encoding/json"
 )
 
   //-----------------------------------------------------------------------------------------------------------------------//
@@ -35,7 +36,7 @@ type Job struct {
     UUID string
     SerialId, ClientId int 
     JobDateTime, JobEndDateTime, CreatedDate, PaymentDueDate, LastStatusUpdate workizTime
-    JobTotalPrice, JobAmountDue, SubTotal int
+    JobTotalPrice, JobAmountDue, SubTotal json.Number
     SubStatus, JobType, ReferralCompany, Timezone, ServiceArea string 
     Phone, PhoneExt, SecondPhone, Email, FirstName, LastName, Company, JobNotes, JobSource, CreatedBy string 
     Address, City, State, PostalCode, Country, Unit string 
