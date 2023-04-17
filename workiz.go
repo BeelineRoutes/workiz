@@ -50,16 +50,54 @@ func (this Config) Valid () bool {
     return true 
 }
 
-type apiResp struct {
+type baseResp struct {
     Flag, Error bool 
     Msg string 
     Data []struct {
         UUID, Client_id string 
     }
+    Code int 
+}
+
+type baseRespDetails1 struct {
     Details struct {
         Error string 
     }
-    Code int 
+}
+
+type baseRespDetails2 struct {
+    Details []baseRespDetails1
+}
+
+type apiResp struct {
+    baseResp
+    baseRespDetails1
+    
+}
+
+func (this *apiResp) UnmarshalJSON (b []byte) error {
+    err := json.Unmarshal (b, &this.baseResp)
+    if err != nil { return err }
+
+    // now try the details
+    one := baseRespDetails1{}
+    err = json.Unmarshal (b, &one)
+    if err == nil {
+        this.baseRespDetails1 = one
+        return nil  
+    }
+
+    // didn't work, try 2
+    two := baseRespDetails2{}
+    err = json.Unmarshal (b, &two)
+    if err == nil {
+        if len(two.Details) > 0 {
+            this.baseRespDetails1 = two.Details[0]
+        }
+        return nil  
+    }
+
+    return err // this really didn't work
 }
 
 type workizTime struct {
