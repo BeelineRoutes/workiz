@@ -14,7 +14,6 @@ import (
     "net/url"
     "context"
     "time"
-    "strings"
 )
 
   //-----------------------------------------------------------------------------------------------------------------------//
@@ -150,52 +149,13 @@ func (this *Workiz) UpdateLeadSchedule (ctx context.Context, token, secret, lead
     return nil
 }
 
-// handles the high level logic of changing which crew members are assigned to a lead
-// crew members need to be assigned one at a time
-// and if you assign the same one twice, you get an error
-// so we need to get the currently assigned ones first, then figure out if more need to be added or removed
-func (this *Workiz) UpdateLeadCrew (ctx context.Context, token, secret, leadId string, fullNames []string) error {
-    existing, err := this.GetLead (ctx, token, leadId)
-    if err != nil { return err }
-
-    // first step, add the missing ones
-    for _, name := range fullNames {
-        exists := false 
-        for _, team := range existing.Team {
-            if strings.EqualFold (team.Name, name) { 
-                exists = true 
-                break 
-            }
-        }
-
-        if exists == false {
-            // it's missing so add it
-            err = this.AssignLeadCrew (ctx, token, secret, leadId, name)
-            if err != nil { return err }
-        }
-    }
-
-    // second step, remove the assigned crew that are no longer assigned
-    for _, team := range existing.Team {
-        exists := false 
-        for _, name := range fullNames {
-            if strings.EqualFold (team.Name, name) {
-                exists = true 
-                break
-            }
-        }
-
-        if exists == false {
-            // they're currently assigned and we need to remove them
-            err = this.UnassignLeadCrew (ctx, token, secret, leadId, team.Name)
-            if err != nil { return err }
-        }
-    }
-    return nil // we got everything figured out
+// wrapper around our re-usable assign function, which is super complicated unfortuantely 
+func (this *Workiz) UpdateLeadCrew (ctx context.Context, token, secret, leadId string, team Members, fullNames []string) error {
+    return this.handleCrew (ctx, token, secret, leadId, team, fullNames, this.AssignLeadCrew, this.UnassignLeadCrew)
 }
 
 // assigns a lead to the crew names
-func (this *Workiz) AssignLeadCrew (ctx context.Context, token, secret, leadId string, fullName string) error {
+func (this *Workiz) AssignLeadCrew (ctx context.Context, token, secret, leadId, fullName string) error {
     var data struct {
         AuthSecret string `json:"auth_secret"`
         UUID, User string 
@@ -208,7 +168,7 @@ func (this *Workiz) AssignLeadCrew (ctx context.Context, token, secret, leadId s
 }
 
 // unassigns a lead to the crew names
-func (this *Workiz) UnassignLeadCrew (ctx context.Context, token, secret, leadId string, fullName string) error {
+func (this *Workiz) UnassignLeadCrew (ctx context.Context, token, secret, leadId, fullName string) error {
     var data struct {
         AuthSecret string `json:"auth_secret"`
         UUID, User string 

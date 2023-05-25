@@ -14,7 +14,8 @@ package workiz
 import (
     "github.com/pkg/errors"
 
-    //"fmt"
+    "fmt"
+    "context"
     "strings"
     "time"
     "net/http"
@@ -35,6 +36,9 @@ var (
     ErrAuthExpired      = errors.New("Auth Expired")
     ErrQuota            = errors.New("Too many requests - quota limit")
 )
+
+type assignCrew func (context.Context, string, string, string, string) error 
+type unassignCrew func (context.Context, string, string, string, string) error 
 
   //-----------------------------------------------------------------------------------------------------------------------//
  //----- STRUCTS ---------------------------------------------------------------------------------------------------------//
@@ -178,4 +182,62 @@ func parseConfig (jsonFile string) (*Config, error) {
     ret := &Config{}
 	err = jsonParser.Decode (ret)
     return ret, errors.WithStack(err)
+}
+
+/* handles the high level logic of changing which crew members are assigned to a job or lead
+crew members need to be assigned one at a time
+and if you assign the same one twice, you get an error
+so we need to get the currently assigned ones first, then figure out if more need to be added or removed
+
+this is brutal, the name of the crew member you get from the get job call may not actually match the crew member's current name
+so in order to remove them, and add them, we need to reference them by the id first, and then their current name
+my guess is they don't use a relational database, so if you change the crew member's name after assigning them to a job it stays
+as the old name in the job table/object
+*/
+func (this *Workiz) handleCrew (ctx context.Context, token, secret, jobId string, team Members, fullNames []string, assFn assignCrew, unassFn unassignCrew) error {
+    existing, err := this.GetJob (ctx, token, jobId)
+    if err != nil { return err }
+
+    // first step, add the missing ones
+    for _, name := range fullNames {
+        nameId := team.FindId (name) // find the id by the name
+        if len(nameId) == 0 { continue } // this is a bad name, no id, so nothing we can do at this point
+
+        exists := false 
+        for _, team := range existing.Team {
+            //if strings.EqualFold (team.Name, name) { 
+            // obviously the id from the members is a string, but the id from job about the team is a string...
+            if strings.EqualFold (fmt.Sprintf("%d", team.Id), nameId) {
+                exists = true 
+                break 
+            }
+        }
+
+        if exists == false {
+            // it's missing so add it
+            err = assFn (ctx, token, secret, jobId, name)
+            if err != nil { return err }
+        }
+    }
+
+    // second step, remove the assigned crew that are no longer assigned
+    for _, existing := range existing.Team {
+        existingName := team.FindName (fmt.Sprintf("%d", existing.Id)) // get the actual current name using the assigned id
+        if len(existingName) == 0 { continue } // not sure this can happen, but we can't do anything if it does
+
+        exists := false 
+        for _, name := range fullNames {
+            if strings.EqualFold (existingName, name) {
+                exists = true 
+                break
+            }
+        }
+
+        if exists == false {
+            // they're currently assigned and we need to remove them
+            err = unassFn (ctx, token, secret, jobId, existingName)
+            if err != nil { return err }
+        }
+    }
+    return nil // we got everything figured out
 }

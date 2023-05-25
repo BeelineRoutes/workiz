@@ -13,7 +13,6 @@ import (
     "net/http"
     "net/url"
     "context"
-    "strings"
     "time"
     "encoding/json"
 )
@@ -168,48 +167,10 @@ func (this *Workiz) UpdateJobSchedule (ctx context.Context, token, secret, jobId
     return nil
 }
 
-// handles the high level logic of changing which crew members are assigned to a job
-// crew members need to be assigned one at a time
-// and if you assign the same one twice, you get an error
-// so we need to get the currently assigned ones first, then figure out if more need to be added or removed
-func (this *Workiz) UpdateJobCrew (ctx context.Context, token, secret, jobId string, fullNames []string) error {
-    existing, err := this.GetJob (ctx, token, jobId)
-    if err != nil { return err }
-
-    // first step, add the missing ones
-    for _, name := range fullNames {
-        exists := false 
-        for _, team := range existing.Team {
-            if strings.EqualFold (team.Name, name) { 
-                exists = true 
-                break 
-            }
-        }
-
-        if exists == false {
-            // it's missing so add it
-            err = this.AssignJobCrew (ctx, token, secret, jobId, name)
-            if err != nil { return err }
-        }
-    }
-
-    // second step, remove the assigned crew that are no longer assigned
-    for _, team := range existing.Team {
-        exists := false 
-        for _, name := range fullNames {
-            if strings.EqualFold (team.Name, name) {
-                exists = true 
-                break
-            }
-        }
-
-        if exists == false {
-            // they're currently assigned and we need to remove them
-            err = this.UnassignJobCrew (ctx, token, secret, jobId, team.Name)
-            if err != nil { return err }
-        }
-    }
-    return nil // we got everything figured out
+// wrapper around our reusable assiging crew function
+// just give it the correct assign and unassign functions
+func (this *Workiz) UpdateJobCrew (ctx context.Context, token, secret, jobId string, team Members, fullNames []string) error {
+    return this.handleCrew (ctx, token, secret, jobId, team, fullNames, this.AssignJobCrew, this.UnassignJobCrew)
 }
 
 // assigns a job to the crew names
