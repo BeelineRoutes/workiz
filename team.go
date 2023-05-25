@@ -55,7 +55,7 @@ func (this teamResponse) toMembers () (ret []*Member) {
 func (this *Workiz) ListTeam (ctx context.Context, token string) ([]*Member, error) {
     var resp teamResponse
     
-    err := this.send (ctx, http.MethodGet, token, "team/all/", nil, &resp)
+    err := this.send (ctx, 0, http.MethodGet, token, "team/all/", nil, &resp)
     if err != nil { return nil, err } // bail
     
     return resp.toMembers(), nil // we're good

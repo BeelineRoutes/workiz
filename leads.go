@@ -77,7 +77,7 @@ func (this leadResponse) toJobs (start, end time.Time) (ret []*Lead) {
 func (this *Workiz) GetLead (ctx context.Context, token, leadId string) (*Lead, error) {
     resp := &leadResponse{}
     
-    err := this.send (ctx, http.MethodGet, token, fmt.Sprintf("lead/get/%s/", leadId), nil, resp)
+    err := this.send (ctx, 0, http.MethodGet, token, fmt.Sprintf("lead/get/%s/", leadId), nil, resp)
     if err != nil { return nil, err } // bail
     
     if len(resp.Data) == 0 {
@@ -109,7 +109,7 @@ func (this *Workiz) ListLeads (ctx context.Context, token string, start, end tim
         params.Set("offset", fmt.Sprintf("%d", i)) // set our next page
         resp := &leadResponse{}
         
-        err := this.send (ctx, http.MethodGet, token, fmt.Sprintf("lead/all/?%s", params.Encode()), nil, resp)
+        err := this.send (ctx, 0, http.MethodGet, token, fmt.Sprintf("lead/all/?%s", params.Encode()), nil, resp)
         if err != nil { return nil, err } // bail
         
         // we're here, we're good
@@ -143,7 +143,7 @@ func (this *Workiz) UpdateLeadSchedule (ctx context.Context, token, secret, lead
     data.LeadDateTime = startTime 
     data.LeadEndDateTime = data.LeadDateTime.Add(duration)
 
-    err := this.send (ctx, http.MethodPost, token, "lead/update/", data, nil)
+    err := this.send (ctx, 0, http.MethodPost, token, "lead/update/", data, nil)
     if err != nil { return err } // bail
     
     // we're here, we're good
@@ -204,7 +204,7 @@ func (this *Workiz) AssignLeadCrew (ctx context.Context, token, secret, leadId s
     data.AuthSecret = secret
     data.User = fullName
     
-    return this.send (ctx, http.MethodPost, token, "lead/assign/", data, nil)
+    return this.send (ctx, 0, http.MethodPost, token, "lead/assign/", data, nil)
 }
 
 // unassigns a lead to the crew names
@@ -217,7 +217,7 @@ func (this *Workiz) UnassignLeadCrew (ctx context.Context, token, secret, leadId
     data.AuthSecret = secret
     data.User = fullName // it's based on name, not id
     
-    return this.send (ctx, http.MethodPost, token, "lead/unassign/", data, nil)
+    return this.send (ctx, 0, http.MethodPost, token, "lead/unassign/", data, nil)
 }
 
 // creates a new lead in the system
@@ -228,7 +228,7 @@ func (this *Workiz) CreateLead (ctx context.Context, token, secret string, lead 
     // we need the id right away
     resp := &apiResp{}
     
-    err := this.send (ctx, http.MethodPost, token, "lead/create/", lead, resp)
+    err := this.send (ctx, 0, http.MethodPost, token, "lead/create/", lead, resp)
     if err != nil { return "", err } // bail
     
     if resp.Flag == false || len(resp.Data) == 0 {

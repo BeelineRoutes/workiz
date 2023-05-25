@@ -33,6 +33,7 @@ var (
 	ErrNotFound 		= errors.New("Item was not found")
 	ErrTooManyRecords	= errors.New("Too many records returned")
     ErrAuthExpired      = errors.New("Auth Expired")
+    ErrQuota            = errors.New("Too many requests - quota limit")
 )
 
   //-----------------------------------------------------------------------------------------------------------------------//

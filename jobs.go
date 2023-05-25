@@ -92,7 +92,7 @@ func (this jobResponse) toJobs (start, end time.Time) (ret []*Job) {
 func (this *Workiz) GetJob (ctx context.Context, token, jobId string) (*Job, error) {
     var resp jobResponse
     
-    err := this.send (ctx, http.MethodGet, token, fmt.Sprintf("job/get/%s/", jobId), nil, &resp)
+    err := this.send (ctx, 0, http.MethodGet, token, fmt.Sprintf("job/get/%s/", jobId), nil, &resp)
     if err != nil { return nil, err } // bail
     
     jobs := resp.toJobs(time.Time{}, time.Time{}) // pull out the jobs
@@ -130,7 +130,7 @@ func (this *Workiz) ListJobs (ctx context.Context, token string, start, end time
         params.Set("offset", fmt.Sprintf("%d", i)) // set our next page
         var resp jobResponse
         
-        err := this.send (ctx, http.MethodGet, token, fmt.Sprintf("job/all/?%s", params.Encode()), nil, &resp)
+        err := this.send (ctx, 0, http.MethodGet, token, fmt.Sprintf("job/all/?%s", params.Encode()), nil, &resp)
         if err != nil { return nil, err } // bail
         
         // we're here, we're good
@@ -161,7 +161,7 @@ func (this *Workiz) UpdateJobSchedule (ctx context.Context, token, secret, jobId
     data.JobDateTime = startTime 
     data.JobEndDateTime = data.JobDateTime.Add(duration)
 
-    err := this.send (ctx, http.MethodPost, token, "job/update/", data, nil)
+    err := this.send (ctx, 0, http.MethodPost, token, "job/update/", data, nil)
     if err != nil { return err } // bail
     
     // we're here, we're good
@@ -222,7 +222,7 @@ func (this *Workiz) AssignJobCrew (ctx context.Context, token, secret, jobId str
     data.AuthSecret = secret
     data.User = fullName // it's based on name, not id
 
-    err := this.send (ctx, http.MethodPost, token, "job/assign/", data, nil)
+    err := this.send (ctx, 0, http.MethodPost, token, "job/assign/", data, nil)
     if err != nil { return err } // bail
     
     // we're here, we're good
@@ -239,7 +239,7 @@ func (this *Workiz) UnassignJobCrew (ctx context.Context, token, secret, jobId s
     data.AuthSecret = secret
     data.User = fullName // it's based on name, not id
     
-    err := this.send (ctx, http.MethodPost, token, "job/unassign/", data, nil)
+    err := this.send (ctx, 0, http.MethodPost, token, "job/unassign/", data, nil)
     if err != nil { return err } // bail
     
     // we're here, we're good
@@ -253,7 +253,7 @@ func (this *Workiz) CreateJob (ctx context.Context, token, secret string, job *C
     job.AuthSecret = secret
     resp := &apiResp{}
     
-    err := this.send (ctx, http.MethodPost, token, "job/create/", job, resp)
+    err := this.send (ctx, 0, http.MethodPost, token, "job/create/", job, resp)
     if err != nil { return "", err } // bail
     
     if resp.Flag == false || len(resp.Data) == 0 {
@@ -274,7 +274,7 @@ func (this *Workiz) CreateJobType (ctx context.Context, token, secret, jobType s
     data.AuthSecret = secret
     data.JobType = jobType
     
-    err := this.send (ctx, http.MethodPost, token, "jobType/createIfNotExists/", data, nil)
+    err := this.send (ctx, 0, http.MethodPost, token, "jobType/createIfNotExists/", data, nil)
     if err != nil { return err } // bail
     
     // we're here, we're good

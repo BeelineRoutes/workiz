@@ -47,7 +47,7 @@ func (this *Workiz) CreateClient (ctx context.Context, token, secret string, cli
     resp := &apiResp{}
     client.AuthSecret = secret
     
-    err := this.send (ctx, http.MethodPost, token, "Client/create/", client, resp)
+    err := this.send (ctx, 0, http.MethodPost, token, "Client/create/", client, resp)
     if err != nil { return err } // bail
     
     if resp.Flag != true {
@@ -63,7 +63,7 @@ func (this *Workiz) CreateClient (ctx context.Context, token, secret string, cli
 func (this *Workiz) GetClient (ctx context.Context, token, id string) (*Client, error) {
     resp := &getClientResp{}
     
-    err := this.send (ctx, http.MethodGet, token, "Client/get/" + id + "/", nil, resp)
+    err := this.send (ctx, 0, http.MethodGet, token, "Client/get/" + id + "/", nil, resp)
     if err != nil { return nil, err } // bail
     
     if resp.Flag != true {

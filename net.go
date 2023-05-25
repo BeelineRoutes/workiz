@@ -16,6 +16,8 @@ import (
     "io/ioutil"
     "bytes"
 	"strings"
+	"time"
+	"math"
 )
 
   //-----------------------------------------------------------------------------------------------------------------------//
@@ -37,6 +39,9 @@ func (this *Workiz) finish (req *http.Request, out interface{}) error {
 		case http.StatusUnauthorized:
 			// special error 
 			return errors.Wrapf (ErrAuthExpired, "Unauthorized : %d : %s", resp.StatusCode, string(body))
+
+		case http.StatusTooManyRequests:
+			return errors.Wrapf (ErrQuota, "Quota : %d : %s", resp.StatusCode, string(body))
 		}
 		// just a default
 		err = errors.Wrapf (ErrUnexpected, "Workiz Error : %d : %s", resp.StatusCode, string(body))
@@ -79,7 +84,11 @@ func (this *Workiz) finish (req *http.Request, out interface{}) error {
  //----- FUNCTIONS -------------------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------------------------------//
 
-func (this *Workiz) send (ctx context.Context, requestType, token, link string, in, out interface{}) error {
+// this recurses
+// retries itself on a 429 - ErrQuota
+func (this *Workiz) send (ctx context.Context, retries int, requestType, token, link string, in, out interface{}) error {
+	if ctx.Err() != nil { return ctx.Err() } // bail on a context timeout
+
 	var jstr []byte 
 	var err error 
 
@@ -97,6 +106,14 @@ func (this *Workiz) send (ctx context.Context, requestType, token, link string, 
 
 	for key, val := range header { req.Header.Set (key, val) }
 	err = this.finish (req, out)
+
+	switch errors.Cause(err) {
+	case ErrQuota:
+		if retries < 6 { // 6 gives 1 + 3 + 7 + 15 + 31 + 63 seconds wait
+			time.Sleep (time.Second * time.Duration(math.Pow(2, float64(retries)))) // exp timeout for sleeping
+			return this.send (ctx, retries +1, requestType, token, link, in, out)
+		}
+	}
 	
 	return errors.Wrapf (err, " %s : %s", link, string(jstr))
 }
