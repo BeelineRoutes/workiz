@@ -40,6 +40,16 @@ type Lead struct {
     }
 }
 
+func (this *Lead) toGeneric () (ret []*teamGeneric) {
+    for _, t := range this.Team {
+        ret = append(ret, &teamGeneric {
+            Id: t.Id,
+            Name: t.Name,
+        })
+    }
+    return 
+}
+
 type CreateLead struct {
     AuthSecret string `json:"auth_secret"`
     LeadDateTime, LeadEndDateTime time.Time 
@@ -151,7 +161,10 @@ func (this *Workiz) UpdateLeadSchedule (ctx context.Context, token, secret, lead
 
 // wrapper around our re-usable assign function, which is super complicated unfortuantely 
 func (this *Workiz) UpdateLeadCrew (ctx context.Context, token, secret, leadId string, team Members, fullNames []string) error {
-    return this.handleCrew (ctx, token, secret, leadId, team, fullNames, this.AssignLeadCrew, this.UnassignLeadCrew)
+    existing, err := this.GetLead (ctx, token, leadId)
+    if err != nil{ return err }
+
+    return this.handleCrew (ctx, existing.toGeneric(), token, secret, leadId, team, fullNames, this.AssignLeadCrew, this.UnassignLeadCrew)
 }
 
 // assigns a lead to the crew names

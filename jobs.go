@@ -50,6 +50,16 @@ type Job struct {
     Comments workizComment
 }
 
+func (this *Job) toGeneric () (ret []*teamGeneric) {
+    for _, t := range this.Team {
+        ret = append(ret, &teamGeneric {
+            Id: fmt.Sprintf("%d", t.Id),
+            Name: t.Name,
+        })
+    }
+    return 
+}
+
 type baseAuth struct {
     AuthSecret string `json:"auth_secret"`
 }
@@ -170,7 +180,10 @@ func (this *Workiz) UpdateJobSchedule (ctx context.Context, token, secret, jobId
 // wrapper around our reusable assiging crew function
 // just give it the correct assign and unassign functions
 func (this *Workiz) UpdateJobCrew (ctx context.Context, token, secret, jobId string, team Members, fullNames []string) error {
-    return this.handleCrew (ctx, token, secret, jobId, team, fullNames, this.AssignJobCrew, this.UnassignJobCrew)
+    existing, err := this.GetJob (ctx, token, jobId)
+    if err != nil { return err }
+
+    return this.handleCrew (ctx, existing.toGeneric(), token, secret, jobId, team, fullNames, this.AssignJobCrew, this.UnassignJobCrew)
 }
 
 // assigns a job to the crew names
