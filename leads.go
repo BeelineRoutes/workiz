@@ -136,7 +136,7 @@ func (this *Workiz) ListLeads (ctx context.Context, token string, start, end tim
         
         if resp.Has_more == false { return ret, nil } // we finished
     }
-    return ret, errors.Wrapf (ErrTooManyRecords, "received over %d leads in your history", len(ret))
+    return ret, errors.Wrapf (ErrTooManyRecords, "received over %d leads in your history. %s - %s", len(ret), start, end)
 }
 
 // updates the start/end time for a lead at UTC

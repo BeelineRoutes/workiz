@@ -154,7 +154,7 @@ func (this *Workiz) ListJobs (ctx context.Context, token string, start, end time
 
         if resp.Has_more == false { return ret, nil } // we're done
     }
-    return ret, errors.Wrapf (ErrTooManyRecords, "received over %d jobs in your history", len(ret))
+    return ret, errors.Wrapf (ErrTooManyRecords, "received over %d jobs in your history. %s - %s", len(ret), start, end)
 }
 
 // updates the start/end time for a job
