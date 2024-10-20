@@ -81,8 +81,7 @@ type jobResponse struct {
 // we don't have great control over the time range for jobs
 func (this jobResponse) toJobs (start, end time.Time) (ret []*Job) {
     for _, job := range this.Data {
-        if start.IsZero() || 
-            (job.JobDateTime.After(start) && job.JobDateTime.Before(end)) {
+        if start.IsZero() || (job.JobDateTime.After(start) && job.JobDateTime.Before(end)) {
             ret = append (ret, job)
         }
     }
