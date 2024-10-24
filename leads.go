@@ -29,7 +29,8 @@ type Lead struct {
     LeadDateTime, LeadEndDateTime, CreatedDate, PaymentDueDate, LastStatusUpdate workizTime
     LeadTotalPrice, LeadAmountDue, SubTotal, SubStatus, LeadType, ReferralCompany, Timezone, ServiceArea string 
     Phone, PhoneExt, SecondPhone, Email, Comments, FirstName, LastName, Company, LeadNotes, LeadSource, CreatedBy string 
-    Address, City, State, PostalCode, Country, Unit string 
+    Address, City, State, PostalCode, Country string 
+    Unit Unit
     Latitude, Longitude string 
     ItemCost string `json:"item_cost"`
     TechCost string `json:"tech_cost"`
