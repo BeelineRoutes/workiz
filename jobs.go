@@ -31,6 +31,28 @@ const (
  //----- STRUCTS ---------------------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------------------------------//
 
+// Workiz has decided to return either an int or a string depending on what the user entered for the unit, so I need to try both
+type Unit struct {
+	Value string
+}
+
+// Implement UnmarshalJSON to handle both string and int
+func (this *Unit) UnmarshalJSON(data []byte) error {
+	// Attempt to unmarshal as a string
+	if err := json.Unmarshal(data, &this.Value); err == nil {
+		return nil
+	}
+
+	// If it's not a string, then try it as an int
+	var i int
+	if err := json.Unmarshal(data, &i); err == nil && i != 0 {
+		this.Value = fmt.Sprintf("%d", i)
+		return nil
+	}
+
+	return nil // i'm just going to ignore an error if this still doesn't work
+}
+
 type Job struct {
     UUID string
     SerialId, ClientId int 
@@ -38,7 +60,8 @@ type Job struct {
     JobTotalPrice, JobAmountDue, SubTotal json.Number
     SubStatus, JobType, ReferralCompany, Timezone, ServiceArea string 
     Phone, PhoneExt, SecondPhone, Email, FirstName, LastName, Company, JobNotes, JobSource, CreatedBy string 
-    Address, City, State, PostalCode, Country, Unit string 
+    Address, City, State, PostalCode, Country string 
+    Unit Unit
     Latitude, Longitude float64 
     ItemCost int `json:"item_cost"`
     TechCost int `json:"tech_cost"`
