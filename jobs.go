@@ -157,6 +157,13 @@ func (this *Workiz) ListJobs (ctx context.Context, token string, start, end time
         params.Set("start_date", start.Format("2006-01-02"))
     }
 
+    // because unscheduled jobs come in with scheduled ones, we need to compare their ids to make sure we don't include unscheduled ones
+    uMap := make(map[string]bool)
+    unscheduled, _ := this.ListUnscheduledJobs (ctx, token)
+    for _, u := range unscheduled {
+        uMap[u.UUID] = true
+    }
+
     for i := 0; i < 10; i++ { // stay in a loop as long as we're pulling jobs
         params.Set("offset", fmt.Sprintf("%d", i)) // set our next page
         var resp jobResponse
@@ -172,11 +179,45 @@ func (this *Workiz) ListJobs (ctx context.Context, token string, start, end time
             return ret, nil 
         }
 
-        ret = append (ret, newJobs...)
+        for _, nj := range newJobs {
+            if uMap[nj.UUID] == false {
+                ret = append (ret, nj)
+            }
+        }
 
         if resp.Has_more == false { return ret, nil } // we're done
     }
     return ret, errors.Wrapf (ErrTooManyRecords, "received over %d jobs in your history. %s - %s", len(ret), start, end)
+}
+
+// lists the unscheduled jobs, which still have a job date and time... :shrug:
+func (this *Workiz) ListUnscheduledJobs (ctx context.Context, token string) ([]*Job, error) {
+    ret := make([]*Job, 0) // main list to return
+    
+    params := url.Values{}
+    params.Set("records", "100") // docs say 100 is the most you can request at a time
+    params.Set("only_open", "true") // default
+    
+    for i := 0; i < 10; i++ { // stay in a loop as long as we're pulling jobs
+        params.Set("offset", fmt.Sprintf("%d", i)) // set our next page
+        var resp jobResponse
+        
+        err := this.send (ctx, 0, http.MethodGet, token, fmt.Sprintf("job/all/?%s", params.Encode()), nil, &resp)
+        if err != nil { return nil, err } // bail
+        
+        // we're here, we're good
+        newJobs := resp.toJobs(time.Time{}, time.Time{})
+        
+        if len(newJobs) == 0 {
+            // means we didn't pull any more jobs from within our date range
+            return ret, nil 
+        }
+
+        ret = append (ret, newJobs...)
+
+        if resp.Has_more == false { return ret, nil } // we're done
+    }
+    return ret, errors.Wrapf (ErrTooManyRecords, "received over %d unscheduled jobs in your history.", len(ret))
 }
 
 // updates the start/end time for a job
