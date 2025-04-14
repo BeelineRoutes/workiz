@@ -159,10 +159,10 @@ func (this *Workiz) ListJobs (ctx context.Context, token string, start, end time
 
     // because unscheduled jobs come in with scheduled ones, we need to compare their ids to make sure we don't include unscheduled ones
     uMap := make(map[string]bool)
-    unscheduled, _ := this.ListUnscheduledJobs (ctx, token)
-    for _, u := range unscheduled {
-        uMap[u.UUID] = true
-    }
+    // unscheduled, _ := this.ListUnscheduledJobs (ctx, token)
+    // for _, u := range unscheduled {
+    //     uMap[u.UUID] = true
+    // }
 
     for i := 0; i < 10; i++ { // stay in a loop as long as we're pulling jobs
         params.Set("offset", fmt.Sprintf("%d", i)) // set our next page
@@ -173,7 +173,7 @@ func (this *Workiz) ListJobs (ctx context.Context, token string, start, end time
         
         // we're here, we're good
         newJobs := resp.toJobs(start, end)
-        
+
         if len(newJobs) == 0 {
             // means we didn't pull any more jobs from within our date range
             return ret, nil 
@@ -191,6 +191,7 @@ func (this *Workiz) ListJobs (ctx context.Context, token string, start, end time
 }
 
 // lists the unscheduled jobs, which still have a job date and time... :shrug:
+// ya this isn't working yet, the unscheduled jobs don't really work with the API yet
 func (this *Workiz) ListUnscheduledJobs (ctx context.Context, token string) ([]*Job, error) {
     ret := make([]*Job, 0) // main list to return
     
